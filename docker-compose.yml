@@ -1,0 +1,155 @@
+version: "3"
+
+services:
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3.12.4-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app
+
+  contentdb:
+    container_name: contentdb
+    image: postgres:15.4-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "content"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./backend/apps/content/dumps/dump.sql:/docker-entrypoint-initdb.d/dump.sql
+      - contentdb:/var/lib/postgresql/data
+    networks:
+      - app
+
+  authdb:
+    container_name: authdb
+    image: postgres:15.4-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "auth"
+    ports:
+      - "5433:5432"
+    volumes:
+      - authdb:/var/lib/postgresql/data
+    networks:
+      - app
+
+  usersdb:
+    container_name: usersdb
+    image: postgres:15.4-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "users"
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./backend/apps/users/dumps/dump.sql:/docker-entrypoint-initdb.d/dump.sql
+      - usersdb:/var/lib/postgresql/data
+    networks:
+      - app
+
+  api-gateway:
+    container_name: api-gateway
+    build:
+      context: ./backend
+      dockerfile: ./apps/backend/Dockerfile
+      target: production
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - rabbitmq
+      - contentdb
+      - authdb
+      - usersdb
+      - content
+    ports:
+      - "5000:5000"
+    networks:
+      - app
+
+  auth:
+    container_name: auth-microservice
+    build:
+      context: ./backend
+      dockerfile: ./apps/auth/Dockerfile
+      target: production
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - rabbitmq
+      - authdb
+    networks:
+      - app
+
+  users:
+    container_name: users-microservice
+    build:
+      context: ./backend
+      dockerfile: ./apps/users/Dockerfile
+      target: production
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - rabbitmq
+      - usersdb
+    networks:
+      - app
+
+  content:
+    container_name: content-microservice
+    build:
+      context: ./backend
+      dockerfile: ./apps/content/Dockerfile
+      target: production
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - rabbitmq
+      - contentdb
+    networks:
+      - app
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: ./Dockerfile
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - api-gateway
+    networks:
+      - app
+
+  nginx:
+    container_name: nginx
+    build:
+      context: ./nginx
+      dockerfile: ./Dockerfile
+    volumes:
+      - staticbuild:/usr/src/app/public
+    depends_on:
+      - frontend
+    ports:
+      - "80:80"
+    networks:
+      - app
+
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  contentdb:
+  authdb:
+  usersdb:
+  staticbuild:

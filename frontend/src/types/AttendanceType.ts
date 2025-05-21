@@ -1,0 +1,1 @@
+export type AttendanceType = "П" | "УП" | "НП" | "Б";

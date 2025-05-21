@@ -1,0 +1,112 @@
+version: "3"
+
+services:
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3.12.4-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  contentdb:
+    container_name: contentdb
+    image: postgres:15.4-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "content"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./apps/content/dumps/dump.sql:/docker-entrypoint-initdb.d/dump.sql
+      - contentdb:/var/lib/postgresql/data
+
+  authdb:
+    container_name: authdb
+    image: postgres:15.4-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "auth"
+    ports:
+      - "5433:5432"
+    volumes:
+      - authdb:/var/lib/postgresql/data
+
+  usersdb:
+    container_name: usersdb
+    image: postgres:15.4-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "users"
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./apps/users/dumps/dump.sql:/docker-entrypoint-initdb.d/dump.sql
+      - usersdb:/var/lib/postgresql/data
+
+  api-gateway:
+    container_name: api-gateway
+    build:
+      context: .
+      dockerfile: ./apps/backend/Dockerfile
+      target: production
+    # command: npm run start:dev backend
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - contentdb
+      - authdb
+      - usersdb
+      - content
+    ports:
+      - "5000:5000"
+
+  auth:
+    container_name: auth-microservice
+    build:
+      context: .
+      dockerfile: ./apps/auth/Dockerfile
+      target: production
+    # command: npm run start:dev content
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - authdb
+
+  users:
+    container_name: users-microservice
+    build:
+      context: .
+      dockerfile: ./apps/users/Dockerfile
+      target: production
+    # command: npm run start:dev content
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - usersdb
+
+  content:
+    container_name: content-microservice
+    build:
+      context: .
+      dockerfile: ./apps/content/Dockerfile
+      target: production
+    # command: npm run start:dev content
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - contentdb
+
+volumes:
+  contentdb:
+  authdb:
+  usersdb:

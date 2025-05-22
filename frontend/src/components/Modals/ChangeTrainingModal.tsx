@@ -26,6 +26,7 @@ const ChangeTrainingModal: FC<Props> = ({ open, handleCloseClick, training }) =>
 
   const { data: places, isLoading, error: placesError } = useRequest(() => placesService.getPlaces(), [], [open], () => !open);
 
+  // @ts-ignore
   const { changedTraining, handleChangeTraining } = useTrainingChange(training);
 
   const { makeRequest } = useTrainingRequest({

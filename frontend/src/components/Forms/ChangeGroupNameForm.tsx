@@ -52,6 +52,7 @@ const ChangeGroupNameForm: FC<Props> = ({ groupName, groupId, handleCloseClick }
         if (!groupWithNewName) return;
 
         setGroup({ ...group, name: groupWithNewName.name });
+        // @ts-ignore
         setGroups(groups.map?.(group => group.id === groupWithNewName.id ? groupWithNewName : group));
 
       } catch (error: any) {

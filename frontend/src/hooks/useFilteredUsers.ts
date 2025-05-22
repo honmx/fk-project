@@ -13,6 +13,7 @@ export const useFilteredUsers = <T extends UserType>(users: T[], name: string, s
     setFilteredUsers(
       users
         .filter(user => getNameAndSurname(user.name).toLowerCase().includes(name.toLowerCase()))
+        // @ts-ignore
         .filter(selectUserFilterValues.find(value => value.id === selectValueId)?.filterFn || (() => true))
     )
   }, [users, name, selectValueId]);

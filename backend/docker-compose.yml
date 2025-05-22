@@ -46,8 +46,21 @@ services:
     ports:
       - "5434:5432"
     volumes:
-      - ./apps/users/dumps/dump.sql:/docker-entrypoint-initdb.d/dump.sql
+      - ./apps/users/dumps/users-dump.sql:/docker-entrypoint-initdb.d/dump.sql
       - usersdb:/var/lib/postgresql/data
+
+  applicationsdb:
+    container_name: applicationsdb
+    image: postgres:15.4-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "applications"
+    ports:
+      - "5435:5432"
+    volumes:
+      - applicationsdb:/var/lib/postgresql/data
 
   api-gateway:
     container_name: api-gateway
@@ -63,7 +76,13 @@ services:
       - contentdb
       - authdb
       - usersdb
+      - applicationsdb
+      - auth
+      - applications
       - content
+      - users
+      - groups
+      - places
     ports:
       - "5000:5000"
 
@@ -79,6 +98,20 @@ services:
     depends_on:
       - rabbitmq
       - authdb
+  
+  applications:
+    container_name: applciations-microservice
+    build:
+      context: .
+      dockerfile: ./apps/applications/Dockerfile
+      target: production
+    # command: npm run start:dev content
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - applicationsdb
+      - auth
 
   users:
     container_name: users-microservice
@@ -92,6 +125,35 @@ services:
     depends_on:
       - rabbitmq
       - usersdb
+      - applications
+
+  groups:
+    container_name: groups-microservice
+    build:
+      context: .
+      dockerfile: ./apps/groups/Dockerfile
+      target: production
+    # command: npm run start:dev content
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - usersdb
+      - users
+
+  places:
+    container_name: places-microservice
+    build:
+      context: .
+      dockerfile: ./apps/places/Dockerfile
+      target: production
+    # command: npm run start:dev content
+    env_file:
+      - ./.env
+    depends_on:
+      - rabbitmq
+      - usersdb
+      - groups
 
   content:
     container_name: content-microservice
@@ -105,8 +167,10 @@ services:
     depends_on:
       - rabbitmq
       - contentdb
+      - places
 
 volumes:
   contentdb:
   authdb:
   usersdb:
+  applicationsdb:
